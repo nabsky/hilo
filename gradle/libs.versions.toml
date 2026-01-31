@@ -15,6 +15,7 @@ lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "
 ui = { module = "androidx.compose.ui:ui" }
 ui-text = { module = "androidx.compose.ui:ui-text" }
 ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+animation-core = { module = "androidx.compose.animation:animation-core" }
 
 
 [plugins]

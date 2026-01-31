@@ -45,6 +45,7 @@ dependencies {
     implementation(libs.activity.compose)
     implementation(libs.lottie.compose)
     implementation(libs.emoji2)
+    implementation(libs.animation.core)
     debugImplementation(libs.ui.tooling)
 }
 
