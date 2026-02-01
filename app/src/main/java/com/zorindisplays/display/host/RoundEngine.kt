@@ -199,7 +199,12 @@ class RoundEngine {
     private fun drawCards(n: Int): List<String> {
         val ranks = listOf("2","3","4","5","6","7","8","9","10","J","Q","K","A")
         val suits = listOf("♠","♥","♦","♣")
-        return List(n) { ranks.random() + suits.random() }
+
+        val deck = buildList(52) {
+            for (r in ranks) for (s in suits) add(r + s)
+        }.shuffled()
+
+        return deck.take(n)
     }
 
     private fun rank(card: String): Int {
