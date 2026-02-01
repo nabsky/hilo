@@ -159,12 +159,28 @@ private fun CardsRowScene(s: RoundStateDto) {
     val leftX = startX + (cardW + gap) * i
     val rightX = startX + (cardW + gap) * (i + 1)
 
-    val targetScale = if (s.camera == Camera.COMPARE) 1.35f else 1f
-    val animScale by animateFloatAsState(targetScale, label = "camScale")
+    val targetScale = if (s.camera == Camera.COMPARE && s.stage != Stage.FINISH) 1.35f else 1f
+    val animScale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 500),
+        label = "camScale"
+    )
 
     // “камера”: просто масштабируем всю сцену карт из центра пары
     val pairCenterX = (leftX + rightX + cardW) / 2f
     val pairCenterY = rowY + cardH / 2f
+
+    var finishPhase by remember { mutableStateOf(0) }
+
+    LaunchedEffect(s.stage) {
+        if (s.stage == Stage.FINISH) {
+            finishPhase = 0
+            kotlinx.coroutines.delay(520)
+            finishPhase = 1
+        } else {
+            finishPhase = 0
+        }
+    }
 
     val pivotX = pairCenterX / DESIGN_W
     val pivotY = pairCenterY / DESIGN_H
@@ -176,7 +192,8 @@ private fun CardsRowScene(s: RoundStateDto) {
         val centerX = DESIGN_W / 2f
         val centerY = DESIGN_H / 2f
 
-        val followPair = (s.stage != Stage.FINISH)
+        val followPair =
+            (s.stage != Stage.FINISH) || (s.stage == Stage.FINISH && finishPhase == 0)
 
         val dx = if (followPair) centerX - (pairCenterX * animScale) else 0f
         val dy = if (followPair) centerY - (pairCenterY * animScale) else 0f
