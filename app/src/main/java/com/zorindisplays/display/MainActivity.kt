@@ -12,6 +12,16 @@ import androidx.core.view.WindowCompat
 
 class MainActivity : ComponentActivity() {
 
+/*
+alias hilo='curl -s "http://localhost:18080/status" | head -c 200; echo'
+alias arm='curl -s "http://localhost:18080/cmd/arm?table=2&box=3" >/dev/null'
+alias buy='curl -s "http://localhost:18080/cmd/buyin?amount=100" >/dev/null'
+alias hi='curl -s "http://localhost:18080/cmd/choose?side=HI" >/dev/null'
+alias lo='curl -s "http://localhost:18080/cmd/choose?side=LO" >/dev/null'
+alias ok='curl -s "http://localhost:18080/cmd/confirm" >/dev/null'
+alias rst='curl -s "http://localhost:18080/cmd/reset" >/dev/null'
+*/
+
     private lateinit var model: AppModel
 
     override fun onCreate(savedInstanceState: Bundle?) {

@@ -1,5 +1,7 @@
 package com.zorindisplays.display.host
 
+import com.zorindisplays.display.net.protocol.Cmd
+import com.zorindisplays.display.net.protocol.Side
 import com.zorindisplays.display.net.protocol.WsMsg
 import com.zorindisplays.display.net.protocol.WsMsg.State
 import io.ktor.server.application.*
@@ -46,6 +48,37 @@ class BigHostServer(
             routing {
                 // HTTP — для статуса/статистики (пока просто текущий state)
                 get("/status") {
+                    call.respond(engine.state.value)
+                }
+
+                // --- COMMANDS (для теста с браузера) ---
+                get("/cmd/reset") {
+                    engine.apply(Cmd.Reset)
+                    call.respond(engine.state.value)
+                }
+
+                get("/cmd/arm") {
+                    val tableId = call.request.queryParameters["table"]?.toIntOrNull() ?: 1
+                    val boxId = call.request.queryParameters["box"]?.toIntOrNull() ?: 1
+                    engine.apply(Cmd.Arm(tableId, boxId))
+                    call.respond(engine.state.value)
+                }
+
+                get("/cmd/buyin") {
+                    val amount = call.request.queryParameters["amount"]?.toIntOrNull() ?: 100
+                    engine.apply(Cmd.BuyIn(amount))
+                    call.respond(engine.state.value)
+                }
+
+                get("/cmd/choose") {
+                    val side = call.request.queryParameters["side"]?.uppercase()
+                    val s = if (side == "LO") Side.LO else Side.HI
+                    engine.apply(Cmd.Choose(s))
+                    call.respond(engine.state.value)
+                }
+
+                get("/cmd/confirm") {
+                    engine.apply(Cmd.Confirm)
                     call.respond(engine.state.value)
                 }
 
