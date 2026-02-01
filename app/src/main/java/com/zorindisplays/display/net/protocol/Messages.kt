@@ -50,7 +50,7 @@ sealed class Cmd {
 }
 
 @Serializable
-enum class Side { HI, LO }
+enum class Side { HI, LO, TIE }
 
 @Serializable
 enum class Stage {
@@ -90,5 +90,6 @@ data class RoundStateDto(
     val choice: Side? = null,
     val resultText: String? = null,
     val hiX: Double = 0.0,
-    val loX: Double = 0.0
+    val loX: Double = 0.0,
+    val tieX: Double = 0.0
 )

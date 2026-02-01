@@ -20,6 +20,7 @@ alias arm='curl -s "http://localhost:18080/cmd/arm?table=2&box=3" >/dev/null'
 alias buy='curl -s "http://localhost:18080/cmd/buyin?amount=100" >/dev/null'
 alias hi='curl -s "http://localhost:18080/cmd/choose?side=HI" >/dev/null'
 alias lo='curl -s "http://localhost:18080/cmd/choose?side=LO" >/dev/null'
+alias tie='curl -s "http://localhost:18080/cmd/choose?side=TIE" >/dev/null'
 alias ok='curl -s "http://localhost:18080/cmd/confirm" >/dev/null'
 alias rst='curl -s "http://localhost:18080/cmd/reset" >/dev/null'
 */

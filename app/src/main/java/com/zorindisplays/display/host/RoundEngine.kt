@@ -67,7 +67,12 @@ class RoundEngine {
                 if (s.tableId == null || s.boxId == null) return
 
                 val cards = drawCards(5)
-                val (hiX, loX) = multipliersFor(cards[0])
+
+                val i = 0
+                val cur = cards[i]
+                val prior = countPriorSameRank(cards, i)
+                val (hiX, loX) = multipliersFor(cur)
+                val tieX = tieMultiplier(prior)
 
                 _state.value = s.copy(
                     stage = Stage.CHOOSING,
@@ -80,7 +85,8 @@ class RoundEngine {
                     choice = null,
                     resultText = null,
                     hiX = hiX,
-                    loX = loX
+                    loX = loX,
+                    tieX = tieX
                 )
             }
 
@@ -90,11 +96,15 @@ class RoundEngine {
 
                 val i = s.compareIndex.coerceIn(0, 3)
                 val cur = s.cards.getOrNull(i) ?: return
-                val (hiX, loX) = multipliersFor(cur)
 
-                // нельзя выбрать сторону, если коэффициент = 0.0 (невозможно)
+                val (hiX, loX) = multipliersFor(cur)
+                val prior = countPriorSameRank(s.cards, i)
+                val tieX = tieMultiplier(prior)
+
+// запреты если коэффициент 0 (невозможно)
                 if (cmd.side == Side.HI && hiX == 0.0) return
                 if (cmd.side == Side.LO && loX == 0.0) return
+                if (cmd.side == Side.TIE && tieX == 0.0) return
 
                 _state.value = s.copy(
                     stage = Stage.CONFIRMING,
@@ -103,59 +113,83 @@ class RoundEngine {
                     camera = Camera.COMPARE,
                     resultText = null,
                     hiX = hiX,
-                    loX = loX
+                    loX = loX,
+                    tieX = tieX
                 )
             }
 
             Cmd.Confirm -> {
                 if (s.stage != Stage.CONFIRMING) return
                 val choice = s.choice ?: return
-                if (s.cards.size < 2) return
-
                 val i = s.compareIndex.coerceIn(0, 3)
                 val current = s.cards[i]
                 val next = s.cards[i + 1]
 
                 val cmp = compareRanks(current, next)
 
-                // ВАЖНО: ничья = проигрыш
-                val won = when (cmp) {
-                    1 -> (choice == Side.HI)
-                    -1 -> (choice == Side.LO)
-                    else -> false
+                // helper: завершение шага/раунда
+                fun goNextOrFinish(bankAfter: Int) {
+                    val nextIndex = i + 1
+                    if (bankAfter <= 0) {
+                        _state.value = finish(0, "BETTER LUCK NEXT TIME!")
+                        return
+                    }
+                    if (nextIndex >= 4) {
+                        _state.value = finish(
+                            bank = bankAfter,
+                            text = "CONGRATULATIONS!\nYOU WON\n${bankAfter} USD"
+                        )
+                    } else {
+                        val cur2 = s.cards[nextIndex]
+                        val (hiN, loN) = multipliersFor(cur2)
+                        val prior = countPriorSameRank(s.cards, nextIndex)
+                        val tieN = tieMultiplier(prior)
+
+                        _state.value = s.copy(
+                            stage = Stage.CHOOSING,
+                            stageStartedAtMs = now(),
+                            bank = bankAfter,
+                            compareIndex = nextIndex,
+                            stepIndex = nextIndex,
+                            camera = Camera.WIDE,
+                            choice = null,
+                            resultText = null,
+                            hiX = hiN,
+                            loX = loN,
+                            tieX = tieN
+                        )
+                    }
                 }
 
-                if (!won) {
-                    _state.value = finish(
-                        bank = 0,
-                        text = "BETTER LUCK NEXT TIME!"
-                    )
-                    return
-                }
+                when (choice) {
+                    Side.HI, Side.LO -> {
+                        // ничья = проигрыш (как раньше)
+                        val won = when (cmp) {
+                            1 -> (choice == Side.HI)
+                            -1 -> (choice == Side.LO)
+                            else -> false
+                        }
 
-                val coef = if (choice == Side.HI) s.hiX else s.loX
-                val newBank = floor(s.bank * coef).toInt()
+                        if (!won) {
+                            _state.value = finish(0, "BETTER LUCK NEXT TIME!")
+                            return
+                        }
 
-                val nextIndex = i + 1
-                if (nextIndex >= 4) {
-                    _state.value = finish(
-                        bank = newBank,
-                        text = "CONGRATULATIONS!\nYOU WON\n${newBank} USD"
-                    )
-                } else {
-                    val (hiN, loN) = multipliersFor(s.cards[nextIndex])
-                    _state.value = s.copy(
-                        stage = Stage.CHOOSING,
-                        stageStartedAtMs = now(),
-                        bank = newBank,
-                        compareIndex = nextIndex,
-                        stepIndex = nextIndex,
-                        camera = Camera.WIDE,
-                        choice = null,
-                        resultText = null,
-                        hiX = hiN,
-                        loX = loN
-                    )
+                        val coef = if (choice == Side.HI) s.hiX else s.loX
+                        val newBank = kotlin.math.floor(s.bank * coef).toInt()
+                        goNextOrFinish(newBank)
+                    }
+
+                    Side.TIE -> {
+                        val isTie = (cmp == 0)
+                        val newBank = if (isTie) {
+                            kotlin.math.floor(s.bank * s.tieX).toInt()
+                        } else {
+                            // проиграл TIE → банк /2, но игра продолжается
+                            (s.bank / 2)
+                        }
+                        goNextOrFinish(newBank)
+                    }
                 }
             }
         }
@@ -224,6 +258,24 @@ class RoundEngine {
             b > a -> 1
             b < a -> -1
             else -> 0
+        }
+    }
+
+    private fun countPriorSameRank(cards: List<String>, index: Int): Int {
+        val r = rank(cards[index])
+        var cnt = 0
+        for (k in 0 until index) {
+            if (rank(cards[k]) == r) cnt++
+        }
+        return cnt
+    }
+
+    private fun tieMultiplier(prior: Int): Double {
+        return when {
+            prior <= 0 -> 8.0
+            prior == 1 -> 12.0
+            prior >= 2 -> 24.0
+            else -> 0.0
         }
     }
 }

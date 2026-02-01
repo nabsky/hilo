@@ -80,7 +80,7 @@ class BigHostServer(
 
                 get("/cmd/choose") {
                     val side = call.request.queryParameters["side"]?.uppercase()
-                    val s = if (side == "LO") Side.LO else Side.HI
+                    val s = if (side == "LO") Side.LO else if (side == "HI") Side.HI else Side.TIE
                     engine.apply(Cmd.Choose(s))
                     call.respond(engine.state.value)
                 }

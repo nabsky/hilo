@@ -238,7 +238,8 @@ private fun CardsRowScene(s: RoundStateDto) {
             ChoiceHints(
                 choice = s.choice,
                 hiX = s.hiX,
-                loX = s.loX
+                loX = s.loX,
+                tieX = s.tieX
             )
         }
 
@@ -287,27 +288,35 @@ private fun CardView(
 }
 
 @Composable
-private fun ChoiceHints(choice: Side?, hiX: Double, loX: Double) {
+private fun ChoiceHints(choice: Side?, hiX: Double, loX: Double, tieX: Double) {
     val y = 900f // ниже, чтобы не пересекалось с зумом
 
     val hiText = if (hiX == 0.0) "HI  —" else "HI  x ${"%.2f".format(hiX)}"
     val loText = if (loX == 0.0) "LO  —" else "LO  x ${"%.2f".format(loX)}"
+    val tieText = if (tieX == 0.0) "TIE —" else "TIE x ${"%.2f".format(tieX)}"
 
     val hiSelected = choice == Side.HI
     val loSelected = choice == Side.LO
+    val tieSelected = choice == Side.TIE
 
     // левая и правая кнопки
     HintBox(
-        x = 420f,
+        x = 300f,
         y = y,
         text = hiText,
         selected = hiSelected
     )
     HintBox(
-        x = 1120f,
+        x = 770f,
         y = y,
         text = loText,
         selected = loSelected
+    )
+    HintBox(
+        x = 1240f,
+        y = y,
+        text = tieText,
+        selected = tieSelected
     )
 
     // символ между ними по центру
@@ -315,13 +324,14 @@ private fun ChoiceHints(choice: Side?, hiX: Double, loX: Double) {
         null -> "?"
         Side.HI -> "<"
         Side.LO -> ">"
+        Side.TIE -> "="
     }
 
     BasicText(
         text = symbol,
         modifier = Modifier
-            .offset(x = px(DESIGN_W / 2f - 18f), y = px(y + 4f)),
-        style = DefaultTextStyle.copy(fontSize = 72.sp)
+            .offset(x = px(DESIGN_W / 2f - 18f), y = px(y + 100f)),
+        style = DefaultTextStyle.copy(fontSize = 120.sp, textAlign = TextAlign.Center)
     )
 }
 
