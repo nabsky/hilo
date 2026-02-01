@@ -309,14 +309,14 @@ private fun ChoiceHints(choice: Side?, hiX: Double, loX: Double, tieX: Double) {
     HintBox(
         x = 770f,
         y = y,
-        text = loText,
-        selected = loSelected
+        text = tieText,
+        selected = tieSelected
     )
     HintBox(
         x = 1240f,
         y = y,
-        text = tieText,
-        selected = tieSelected
+        text = loText,
+        selected = loSelected
     )
 
     // символ между ними по центру
@@ -330,7 +330,7 @@ private fun ChoiceHints(choice: Side?, hiX: Double, loX: Double, tieX: Double) {
     BasicText(
         text = symbol,
         modifier = Modifier
-            .offset(x = px(DESIGN_W / 2f - 18f), y = px(y + 100f)),
+            .offset(x = px(DESIGN_W / 2f - 18f), y = px(y + 120f)),
         style = DefaultTextStyle.copy(fontSize = 120.sp, textAlign = TextAlign.Center)
     )
 }
