@@ -17,36 +17,30 @@ import com.zorindisplays.display.ui.theme.PrimaryTextColor
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
-fun GameScreen(
-    model: AppModel,
-    onOpenSettings: () -> Unit,
-    onBackToIdle: () -> Unit
-) {
-    var connected by remember { mutableStateOf(false) }
-    var line by remember { mutableStateOf("NO STATE") }
+fun TableGameScreen(model: AppModel) {
+    val stateFlow = model.tableState
+    val connectedFlow = model.tableConnected
 
-    LaunchedEffect(model.tableConnected) {
-        model.tableConnected?.collectLatest { connected = it }
+    var connected by remember { mutableStateOf(false) }
+    var stageText by remember { mutableStateOf("NO STATE") }
+
+    LaunchedEffect(connectedFlow) {
+        connectedFlow?.collectLatest { connected = it }
     }
-    LaunchedEffect(model.tableState) {
-        model.tableState?.collectLatest { st ->
-            line = st?.let {
-                "${it.stage} bank=${it.bank} card=${it.currentCard} next=${it.revealedCard} choice=${it.choice} result=${it.resultText}"
-            } ?: "NO STATE"
+    LaunchedEffect(stateFlow) {
+        stateFlow?.collectLatest { st ->
+            stageText = st?.let { "${it.stage} bank=${it.bank} card=${it.currentCard} next=${it.revealedCard} result=${it.resultText}" }
+                ?: "NO STATE"
         }
     }
 
     Column(Modifier.fillMaxSize().background(DefaultBackground).padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        BasicText("TABLE MODE", style = DefaultTextStyle)
         BasicText("Connected: $connected", style = DefaultTextStyle)
-        BasicText(line, style = DefaultTextStyle)
+        BasicText(stageText, style = DefaultTextStyle)
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Btn("IDLE") { onBackToIdle() }
-            Btn("SETTINGS") { onOpenSettings() }
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Btn("ARM B3") { model.send(Cmd.Arm(tableId = model.settings.tableId, boxId = 3)) }
+            Btn("ARM (T2 B3)") { model.send(Cmd.Arm(tableId = model.settings.tableId, boxId = 3)) }
             Btn("BUYIN 100") { model.send(Cmd.BuyIn(100)) }
         }
 
@@ -54,8 +48,9 @@ fun GameScreen(
             Btn("HI") { model.send(Cmd.Choose(Side.HI)) }
             Btn("LO") { model.send(Cmd.Choose(Side.LO)) }
             Btn("CONFIRM") { model.send(Cmd.Confirm) }
-            Btn("RESET") { model.send(Cmd.Reset) }
         }
+
+        Btn("RESET") { model.send(Cmd.Reset) }
     }
 }
 

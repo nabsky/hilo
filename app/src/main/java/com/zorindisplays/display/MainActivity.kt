@@ -8,20 +8,22 @@ import android.view.WindowInsetsController
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
-import com.zorindisplays.display.ui.RegistrationGate
 
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var model: AppModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
+        model = AppModel(this)
+        model.start()
+
         setContent {
-            RegistrationGate {
-                App()
-            }
+            App(model)
         }
 
         hideSystemUI()
@@ -55,5 +57,10 @@ class MainActivity : ComponentActivity() {
                         View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
                         View.SYSTEM_UI_FLAG_LAYOUT_STABLE
         }
+    }
+
+    override fun onDestroy() {
+        model.stop()
+        super.onDestroy()
     }
 }

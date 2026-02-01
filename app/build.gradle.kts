@@ -2,11 +2,12 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    kotlin("plugin.serialization") version libs.versions.kotlin.get()
 }
 
 android {
     namespace = "com.zorindisplays.display"
-    compileSdk = 33
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.zorindisplays.display"
@@ -35,6 +36,9 @@ android {
     buildFeatures {
         compose = true
     }
+    lint {
+        disable += "MutableCollectionMutableState"
+    }
 }
 
 dependencies {
@@ -46,6 +50,20 @@ dependencies {
     implementation(libs.lottie.compose)
     implementation(libs.emoji2)
     implementation(libs.animation.core)
+
+    implementation(libs.kotlinx.serialization.json)
+
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.cio)
+    implementation(libs.ktor.server.websockets)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.websockets)
+    implementation(libs.ktor.client.content.negotiation)
+
+
     debugImplementation(libs.ui.tooling)
 }
 

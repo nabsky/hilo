@@ -8,15 +8,7 @@ class Router(start: Screen = Screen.Idle) {
     var screen: Screen by mutableStateOf(start)
         private set
 
-    fun go(to: Screen) {
-        screen = to
-    }
-
-    fun backToGame() {
-        screen = Screen.Game
-    }
-
-    fun backToIdle() {
-        screen = Screen.Idle
-    }
+    fun go(to: Screen) { screen = to }
+    fun backToGame() { screen = Screen.Game }
+    fun backToIdle() { screen = Screen.Idle }
 }
