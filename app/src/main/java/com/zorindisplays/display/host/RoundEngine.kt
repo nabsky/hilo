@@ -18,12 +18,32 @@ class RoundEngine {
         stageStartedAtMs = now()
     )
 
+    private fun finish(bank: Int, text: String): RoundStateDto {
+        val s = _state.value
+        return s.copy(
+            stage = Stage.FINISH,
+            stageStartedAtMs = now(),
+            bank = bank,
+            camera = Camera.WIDE,
+            choice = null,
+            resultText = text
+        )
+    }
+
     fun apply(cmd: Cmd) {
+        val s = _state.value
+
         when (cmd) {
-            Cmd.Reset -> _state.value = newIdle()
+            Cmd.Reset -> {
+                _state.value = newIdle()
+            }
 
             is Cmd.Arm -> {
-                _state.value = _state.value.copy(
+                // 1) ARM разрешаем только из IDLE (не посреди игры)
+                if (s.stage != Stage.IDLE) return
+
+                _state.value = RoundStateDto(
+                    roundId = UUID.randomUUID().toString(),
                     stage = Stage.ARMED,
                     stageStartedAtMs = now(),
                     tableId = cmd.tableId,
@@ -39,11 +59,15 @@ class RoundEngine {
             }
 
             is Cmd.BuyIn -> {
+                // 2) BUYIN только после ARM (чтобы всегда был table/box)
+                if (s.stage != Stage.ARMED) return
+                if (s.tableId == null || s.boxId == null) return
+
                 val cards = drawCards(5)
-                _state.value = _state.value.copy(
+                _state.value = s.copy(
                     stage = Stage.CHOOSING,
                     stageStartedAtMs = now(),
-                    bank = cmd.amount,
+                    bank = cmd.amount.coerceAtLeast(0),
                     stepIndex = 0,
                     cards = cards,
                     camera = Camera.WIDE,
@@ -54,8 +78,9 @@ class RoundEngine {
             }
 
             is Cmd.Choose -> {
-                val s = _state.value
+                // Выбор только во время выбора/подтверждения
                 if (s.stage != Stage.CHOOSING && s.stage != Stage.CONFIRMING) return
+                if (s.cards.size < 5) return
 
                 _state.value = s.copy(
                     stage = Stage.CONFIRMING,
@@ -67,33 +92,41 @@ class RoundEngine {
             }
 
             Cmd.Confirm -> {
-                val s = _state.value
-                if (s.stage != Stage.CONFIRMING || s.choice == null) return
+                // Подтверждение только после выбора
+                if (s.stage != Stage.CONFIRMING) return
+                val choice = s.choice ?: return
                 if (s.cards.size < 2) return
-                val i = s.compareIndex.coerceIn(0, 3)
-                val a = s.cards[i]
-                val b = s.cards[i + 1]
 
-                val result = compare(a, b, s.choice)
-                val newBank = when (result) {
-                    "YOU WON!" -> s.bank * 2   // пока заглушка, потом под коэффициенты
-                    "TIE" -> s.bank
-                    else -> 0
+                val i = s.compareIndex.coerceIn(0, 3)
+                val current = s.cards[i]
+                val next = s.cards[i + 1]
+
+                val cmp = compareRanks(current, next)
+                val won = when (cmp) {
+                    0 -> true // tie — проходит дальше, банк не меняем
+                    1 -> (choice == Side.HI)
+                    -1 -> (choice == Side.LO)
+                    else -> false
                 }
 
-                if (newBank == 0) {
-                    _state.value = newIdle()
+                if (!won) {
+                    // 3) проигрыш -> FINISH, банк=0, утешительный текст
+                    _state.value = finish(
+                        bank = 0,
+                        text = "BETTER LUCK NEXT TIME!"
+                    )
                     return
                 }
 
+                // выигрыш или tie
+                val newBank = if (cmp == 0) s.bank else (s.bank * 2) // пока x2 (коэфы добавим позже)
+
                 val nextIndex = i + 1
                 if (nextIndex >= 4) {
-                    _state.value = s.copy(
-                        stage = Stage.FINISH,
-                        stageStartedAtMs = now(),
+                    // 2) финиш с поздравлением
+                    _state.value = finish(
                         bank = newBank,
-                        camera = Camera.WIDE,
-                        resultText = "FINISH"
+                        text = "CONGRATULATIONS!"
                     )
                 } else {
                     _state.value = s.copy(
@@ -111,6 +144,17 @@ class RoundEngine {
         }
     }
 
+    // 4) тик для авто-возврата в IDLE (FINISH -> IDLE через N мс)
+    fun tick(nowMs: Long = System.currentTimeMillis(), finishTimeoutMs: Long = 10_000L) {
+        val s = _state.value
+        if (s.stage == Stage.FINISH) {
+            if (nowMs - s.stageStartedAtMs >= finishTimeoutMs) {
+                _state.value = newIdle()
+            }
+        }
+    }
+
+    // cards utils
     private fun drawCards(n: Int): List<String> {
         val ranks = listOf("2","3","4","5","6","7","8","9","10","J","Q","K","A")
         val suits = listOf("♠","♥","♦","♣")
@@ -126,15 +170,14 @@ class RoundEngine {
         }
     }
 
-    private fun compare(current: String, next: String, choice: Side): String {
+    // returns: 1 if next > current, -1 if next < current, 0 if equal
+    private fun compareRanks(current: String, next: String): Int {
         val a = rank(current)
         val b = rank(next)
-        if (a == b) return "TIE"
-        val isHigher = b > a
-        val won = when (choice) {
-            Side.HI -> isHigher
-            Side.LO -> !isHigher
+        return when {
+            b > a -> 1
+            b < a -> -1
+            else -> 0
         }
-        return if (won) "YOU WON!" else "YOU LOST!"
     }
 }

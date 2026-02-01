@@ -24,6 +24,7 @@ class BigHostServer(
 ) {
     private val engine = RoundEngine()
     private var server: ApplicationEngine? = null
+    private val serverScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val sessions = CopyOnWriteArraySet<DefaultWebSocketServerSession>()
 
@@ -35,6 +36,13 @@ class BigHostServer(
 
     fun start() {
         if (server != null) return
+
+        serverScope.launch {
+            while (isActive) {
+                engine.tick(finishTimeoutMs = 10_000L)
+                delay(500)
+            }
+        }
 
         server = embeddedServer(CIO, port = port) {
             install(ContentNegotiation) {
@@ -116,6 +124,7 @@ class BigHostServer(
     }
 
     fun stop() {
+        serverScope.cancel()
         server?.stop(1000, 2000)
         server = null
     }
