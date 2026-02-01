@@ -176,15 +176,16 @@ private fun CardsRowScene(s: RoundStateDto) {
         val centerX = DESIGN_W / 2f
         val centerY = DESIGN_H / 2f
 
-        val dx = centerX - (pairCenterX * animScale)
-        val dy = centerY - (pairCenterY * animScale)
+        val followPair = (s.stage != Stage.FINISH)
+
+        val dx = if (followPair) centerX - (pairCenterX * animScale) else 0f
+        val dy = if (followPair) centerY - (pairCenterY * animScale) else 0f
 
         Box(
             modifier = Modifier
-                // сначала смещаем (в dp через px())
                 .offset(x = px(dx), y = px(dy))
-                // потом масштабируем от (0,0)
                 .graphicsLayer {
+                    transformOrigin = TransformOrigin(0f, 0f)
                     scaleX = animScale
                     scaleY = animScale
                 }
@@ -207,19 +208,6 @@ private fun CardsRowScene(s: RoundStateDto) {
                         else -> "🂠"
                     },
                     dim = idx > i + 1
-                )
-            }
-
-            // символ между парой при COMPARE/REVEAL
-            if (s.camera == Camera.COMPARE || s.stage == Stage.REVEAL) {
-                CompareOverlay(
-                    leftX = leftX,
-                    rightX = rightX,
-                    rowY = rowY,
-                    cardW = cardW,
-                    cardH = cardH,
-                    stage = s.stage,
-                    resultText = s.resultText
                 )
             }
         }
@@ -273,50 +261,61 @@ private fun CardView(
 }
 
 @Composable
-private fun CompareOverlay(
-    leftX: Float,
-    rightX: Float,
-    rowY: Float,
-    cardW: Float,
-    cardH: Float,
-    stage: Stage,
-    resultText: String?
-) {
-    val centerX = (leftX + rightX + cardW) / 2f
-    val symbol = when {
-        stage != Stage.REVEAL -> "?"
-        resultText == "TIE" -> "="
-        resultText == "YOU WON!" -> "<"
-        else -> ">"
+private fun ChoiceHints(choice: Side?) {
+    val y = 900f // ниже, чтобы не пересекалось с зумом
+
+    val hiSelected = choice == Side.HI
+    val loSelected = choice == Side.LO
+
+    // левая и правая кнопки
+    HintBox(
+        x = 420f,
+        y = y,
+        text = "HI  x 6.06",
+        selected = hiSelected
+    )
+    HintBox(
+        x = 1120f,
+        y = y,
+        text = "LO  x 1.22",
+        selected = loSelected
+    )
+
+    // символ между ними по центру
+    val symbol = when (choice) {
+        null -> "?"
+        Side.HI -> "<"
+        Side.LO -> ">"
     }
 
     BasicText(
         text = symbol,
         modifier = Modifier
-            .offset(x = px(centerX - 16f), y = px(rowY + cardH / 2f - 60f)),
-        style = DefaultTextStyle.copy(fontSize = 120.sp)
+            .offset(x = px(DESIGN_W / 2f - 18f), y = px(y + 4f)),
+        style = DefaultTextStyle.copy(fontSize = 72.sp)
     )
 }
 
-
 @Composable
-private fun ChoiceHints(choice: Side?) {
-    val y = 900f
-    HintBox(x = 420f, y = y, text = "HI  x 6.06", filled = choice == Side.HI)
-    HintBox(x = 1120f, y = y, text = "LO  x 1.22", filled = choice == Side.LO)
-}
+private fun HintBox(x: Float, y: Float, text: String, selected: Boolean) {
+    val bg = if (selected) PrimaryTextColor else DefaultBackground
+    val fg = if (selected) DefaultBackground else PrimaryTextColor
 
-@Composable
-private fun HintBox(x: Float, y: Float, text: String, filled: Boolean) {
     Box(
         modifier = Modifier
             .offset(x = px(x), y = px(y))
             .size(px(380f), px(92f))
             .border(3.dp, PrimaryTextColor.copy(alpha = 0.9f))
-            .background(if (filled) PrimaryTextColor.copy(alpha = 0.12f) else DefaultBackground),
+            .background(bg),
         contentAlignment = Alignment.Center
     ) {
-        BasicText(text, style = DefaultTextStyle.copy(fontSize = 40.sp))
+        BasicText(
+            text = text,
+            style = DefaultTextStyle.copy(
+                fontSize = 40.sp,
+                color = fg
+            )
+        )
     }
 }
 
