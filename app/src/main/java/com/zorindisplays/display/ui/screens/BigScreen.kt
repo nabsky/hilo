@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -131,7 +132,10 @@ private fun CenterText(text: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         BasicText(
             text = text,
-            style = DefaultTextStyle.copy(fontSize = 72.sp),
+            style = DefaultTextStyle.copy(
+                fontSize = 72.sp,
+                textAlign = TextAlign.Center
+            ),
         )
     }
 }
@@ -229,9 +233,12 @@ private fun CardsRowScene(s: RoundStateDto) {
             }
         }
 
-        // подсказки снизу (пока заглушки, коэффициенты добавим позже)
         if (s.stage == Stage.CHOOSING || s.stage == Stage.CONFIRMING) {
-            ChoiceHints(choice = s.choice)
+            ChoiceHints(
+                choice = s.choice,
+                hiX = s.hiX,
+                loX = s.loX
+            )
         }
 
         // финальный текст
@@ -242,8 +249,8 @@ private fun CardsRowScene(s: RoundStateDto) {
                     text = t,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 120.dp),
-                    style = DefaultTextStyle.copy(fontSize = 64.sp)
+                        .padding(bottom = 0.dp),
+                    style = DefaultTextStyle.copy(fontSize = 64.sp, textAlign = TextAlign.Center)
                 )
             }
         }
@@ -278,8 +285,11 @@ private fun CardView(
 }
 
 @Composable
-private fun ChoiceHints(choice: Side?) {
+private fun ChoiceHints(choice: Side?, hiX: Double, loX: Double) {
     val y = 900f // ниже, чтобы не пересекалось с зумом
+
+    val hiText = if (hiX == 0.0) "HI  —" else "HI  x ${"%.2f".format(hiX)}"
+    val loText = if (loX == 0.0) "LO  —" else "LO  x ${"%.2f".format(loX)}"
 
     val hiSelected = choice == Side.HI
     val loSelected = choice == Side.LO
@@ -288,13 +298,13 @@ private fun ChoiceHints(choice: Side?) {
     HintBox(
         x = 420f,
         y = y,
-        text = "HI  x 6.06",
+        text = hiText,
         selected = hiSelected
     )
     HintBox(
         x = 1120f,
         y = y,
-        text = "LO  x 1.22",
+        text = loText,
         selected = loSelected
     )
 

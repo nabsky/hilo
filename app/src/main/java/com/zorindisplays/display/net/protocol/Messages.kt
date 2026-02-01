@@ -88,5 +88,7 @@ data class RoundStateDto(
 
     // выбранная сторона и результат
     val choice: Side? = null,
-    val resultText: String? = null
+    val resultText: String? = null,
+    val hiX: Double = 0.0,
+    val loX: Double = 0.0
 )

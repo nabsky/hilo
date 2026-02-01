@@ -4,6 +4,7 @@ import com.zorindisplays.display.net.protocol.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
+import kotlin.math.floor
 
 class RoundEngine {
 
@@ -15,7 +16,9 @@ class RoundEngine {
     private fun newIdle(): RoundStateDto = RoundStateDto(
         roundId = UUID.randomUUID().toString(),
         stage = Stage.IDLE,
-        stageStartedAtMs = now()
+        stageStartedAtMs = now(),
+        hiX = 0.0,
+        loX = 0.0
     )
 
     private fun finish(bank: Int, text: String): RoundStateDto {
@@ -34,12 +37,10 @@ class RoundEngine {
         val s = _state.value
 
         when (cmd) {
-            Cmd.Reset -> {
-                _state.value = newIdle()
-            }
+            Cmd.Reset -> _state.value = newIdle()
 
             is Cmd.Arm -> {
-                // 1) ARM разрешаем только из IDLE (не посреди игры)
+                // ARM только из IDLE
                 if (s.stage != Stage.IDLE) return
 
                 _state.value = RoundStateDto(
@@ -54,16 +55,20 @@ class RoundEngine {
                     camera = Camera.WIDE,
                     compareIndex = 0,
                     choice = null,
-                    resultText = "GET READY"
+                    resultText = "GET READY",
+                    hiX = 0.0,
+                    loX = 0.0
                 )
             }
 
             is Cmd.BuyIn -> {
-                // 2) BUYIN только после ARM (чтобы всегда был table/box)
+                // BUYIN только после ARM
                 if (s.stage != Stage.ARMED) return
                 if (s.tableId == null || s.boxId == null) return
 
                 val cards = drawCards(5)
+                val (hiX, loX) = multipliersFor(cards[0])
+
                 _state.value = s.copy(
                     stage = Stage.CHOOSING,
                     stageStartedAtMs = now(),
@@ -73,26 +78,36 @@ class RoundEngine {
                     camera = Camera.WIDE,
                     compareIndex = 0,
                     choice = null,
-                    resultText = null
+                    resultText = null,
+                    hiX = hiX,
+                    loX = loX
                 )
             }
 
             is Cmd.Choose -> {
-                // Выбор только во время выбора/подтверждения
                 if (s.stage != Stage.CHOOSING && s.stage != Stage.CONFIRMING) return
                 if (s.cards.size < 5) return
+
+                val i = s.compareIndex.coerceIn(0, 3)
+                val cur = s.cards.getOrNull(i) ?: return
+                val (hiX, loX) = multipliersFor(cur)
+
+                // нельзя выбрать сторону, если коэффициент = 0.0 (невозможно)
+                if (cmd.side == Side.HI && hiX == 0.0) return
+                if (cmd.side == Side.LO && loX == 0.0) return
 
                 _state.value = s.copy(
                     stage = Stage.CONFIRMING,
                     stageStartedAtMs = now(),
                     choice = cmd.side,
                     camera = Camera.COMPARE,
-                    resultText = null
+                    resultText = null,
+                    hiX = hiX,
+                    loX = loX
                 )
             }
 
             Cmd.Confirm -> {
-                // Подтверждение только после выбора
                 if (s.stage != Stage.CONFIRMING) return
                 val choice = s.choice ?: return
                 if (s.cards.size < 2) return
@@ -102,15 +117,15 @@ class RoundEngine {
                 val next = s.cards[i + 1]
 
                 val cmp = compareRanks(current, next)
+
+                // ВАЖНО: ничья = проигрыш
                 val won = when (cmp) {
-                    0 -> true // tie — проходит дальше, банк не меняем
                     1 -> (choice == Side.HI)
                     -1 -> (choice == Side.LO)
                     else -> false
                 }
 
                 if (!won) {
-                    // 3) проигрыш -> FINISH, банк=0, утешительный текст
                     _state.value = finish(
                         bank = 0,
                         text = "BETTER LUCK NEXT TIME!"
@@ -118,17 +133,17 @@ class RoundEngine {
                     return
                 }
 
-                // выигрыш или tie
-                val newBank = if (cmp == 0) s.bank else (s.bank * 2) // пока x2 (коэфы добавим позже)
+                val coef = if (choice == Side.HI) s.hiX else s.loX
+                val newBank = floor(s.bank * coef).toInt()
 
                 val nextIndex = i + 1
                 if (nextIndex >= 4) {
-                    // 2) финиш с поздравлением
                     _state.value = finish(
                         bank = newBank,
-                        text = "CONGRATULATIONS!"
+                        text = "CONGRATULATIONS!\nYOU WON\n${newBank} USD"
                     )
                 } else {
+                    val (hiN, loN) = multipliersFor(s.cards[nextIndex])
                     _state.value = s.copy(
                         stage = Stage.CHOOSING,
                         stageStartedAtMs = now(),
@@ -137,14 +152,15 @@ class RoundEngine {
                         stepIndex = nextIndex,
                         camera = Camera.WIDE,
                         choice = null,
-                        resultText = null
+                        resultText = null,
+                        hiX = hiN,
+                        loX = loN
                     )
                 }
             }
         }
     }
 
-    // 4) тик для авто-возврата в IDLE (FINISH -> IDLE через N мс)
     fun tick(nowMs: Long = System.currentTimeMillis(), finishTimeoutMs: Long = 10_000L) {
         val s = _state.value
         if (s.stage == Stage.FINISH) {
@@ -154,7 +170,32 @@ class RoundEngine {
         }
     }
 
-    // cards utils
+    // ====== FIXED MULTIPLIERS (RTP≈95% for 4 steps, tie=loss) ======
+    // ranks: 2..14 (A=14). Coefs are symmetric around 8.
+    private fun multipliersFor(card: String): Pair<Double, Double> {
+        return multipliersForRank(rank(card))
+    }
+
+    private fun multipliersForRank(r: Int): Pair<Double, Double> {
+        return when (r) {
+            2  -> 1.05 to 0.0
+            3  -> 1.14 to 12.59
+            4  -> 1.26 to 6.29
+            5  -> 1.40 to 4.20
+            6  -> 1.57 to 3.15
+            7  -> 1.80 to 2.52
+            8  -> 2.10 to 2.10
+            9  -> 2.52 to 1.80
+            10 -> 3.15 to 1.57
+            11 -> 4.20 to 1.40 // J
+            12 -> 6.29 to 1.26 // Q
+            13 -> 12.59 to 1.14 // K
+            14 -> 0.0 to 1.05   // A
+            else -> 0.0 to 0.0
+        }
+    }
+
+    // ====== cards utils ======
     private fun drawCards(n: Int): List<String> {
         val ranks = listOf("2","3","4","5","6","7","8","9","10","J","Q","K","A")
         val suits = listOf("♠","♥","♦","♣")
