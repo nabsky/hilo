@@ -29,8 +29,13 @@ fun TableGameScreen(model: AppModel) {
     }
     LaunchedEffect(stateFlow) {
         stateFlow?.collectLatest { st ->
-            stageText = st?.let { "${it.stage} bank=${it.bank} card=${it.currentCard} next=${it.revealedCard} result=${it.resultText}" }
-                ?: "NO STATE"
+            stageText = st?.let {
+                val i = it.compareIndex.coerceIn(0, it.cards.size - 2)
+                val current = it.cards.getOrNull(i)
+                val next = it.cards.getOrNull(i + 1)
+
+                "${it.stage} bank=${it.bank} cur=$current next=$next result=${it.resultText}"
+            } ?: "NO STATE"
         }
     }
 

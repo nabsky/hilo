@@ -4,7 +4,6 @@ import com.zorindisplays.display.net.protocol.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
-import kotlin.random.Random
 
 class RoundEngine {
 
@@ -21,9 +20,7 @@ class RoundEngine {
 
     fun apply(cmd: Cmd) {
         when (cmd) {
-            is Cmd.Reset -> {
-                _state.value = newIdle()
-            }
+            Cmd.Reset -> _state.value = newIdle()
 
             is Cmd.Arm -> {
                 _state.value = _state.value.copy(
@@ -31,25 +28,28 @@ class RoundEngine {
                     stageStartedAtMs = now(),
                     tableId = cmd.tableId,
                     boxId = cmd.boxId,
-                    resultText = "PLAYER PREPARE"
+                    bank = 0,
+                    stepIndex = 0,
+                    cards = emptyList(),
+                    camera = Camera.WIDE,
+                    compareIndex = 0,
+                    choice = null,
+                    resultText = "GET READY"
                 )
             }
 
             is Cmd.BuyIn -> {
+                val cards = drawCards(5)
                 _state.value = _state.value.copy(
-                    stage = Stage.DEAL,
+                    stage = Stage.CHOOSING,
                     stageStartedAtMs = now(),
                     bank = cmd.amount,
                     stepIndex = 0,
-                    currentCard = drawCard(),
-                    revealedCard = null,
+                    cards = cards,
+                    camera = Camera.WIDE,
+                    compareIndex = 0,
                     choice = null,
                     resultText = null
-                )
-                // после DEAL сразу даём выбирать
-                _state.value = _state.value.copy(
-                    stage = Stage.CHOOSING,
-                    stageStartedAtMs = now()
                 )
             }
 
@@ -61,67 +61,63 @@ class RoundEngine {
                     stage = Stage.CONFIRMING,
                     stageStartedAtMs = now(),
                     choice = cmd.side,
+                    camera = Camera.COMPARE,
                     resultText = null
                 )
             }
 
-            is Cmd.Confirm -> {
+            Cmd.Confirm -> {
                 val s = _state.value
-                if (s.stage != Stage.CONFIRMING || s.choice == null || s.currentCard == null) return
+                if (s.stage != Stage.CONFIRMING || s.choice == null) return
+                if (s.cards.size < 2) return
+                val i = s.compareIndex.coerceIn(0, 3)
+                val a = s.cards[i]
+                val b = s.cards[i + 1]
 
-                val next = drawCard()
-                val result = compare(s.currentCard, next, s.choice)
-
+                val result = compare(a, b, s.choice)
                 val newBank = when (result) {
-                    "YOU WON!" -> s.bank * 2 // пока заглушка; коэффициенты подключим позже
+                    "YOU WON!" -> s.bank * 2   // пока заглушка, потом под коэффициенты
                     "TIE" -> s.bank
                     else -> 0
                 }
 
-                _state.value = s.copy(
-                    stage = Stage.REVEAL,
-                    stageStartedAtMs = now(),
-                    revealedCard = next,
-                    bank = newBank,
-                    resultText = result
-                )
-
-                // дальше: или следующий шаг, или конец (пока просто сброс при лузе/нуле)
                 if (newBank == 0) {
                     _state.value = newIdle()
+                    return
+                }
+
+                val nextIndex = i + 1
+                if (nextIndex >= 4) {
+                    _state.value = s.copy(
+                        stage = Stage.FINISH,
+                        stageStartedAtMs = now(),
+                        bank = newBank,
+                        camera = Camera.WIDE,
+                        resultText = "FINISH"
+                    )
                 } else {
-                    val nextStep = s.stepIndex + 1
-                    if (nextStep >= 4) {
-                        _state.value = _state.value.copy(
-                            stage = Stage.FINISH,
-                            stageStartedAtMs = now(),
-                            resultText = "FINISH"
-                        )
-                    } else {
-                        _state.value = _state.value.copy(
-                            stage = Stage.CHOOSING,
-                            stageStartedAtMs = now(),
-                            stepIndex = nextStep,
-                            currentCard = next,
-                            revealedCard = null,
-                            choice = null,
-                            resultText = null
-                        )
-                    }
+                    _state.value = s.copy(
+                        stage = Stage.CHOOSING,
+                        stageStartedAtMs = now(),
+                        bank = newBank,
+                        compareIndex = nextIndex,
+                        stepIndex = nextIndex,
+                        camera = Camera.WIDE,
+                        choice = null,
+                        resultText = null
+                    )
                 }
             }
         }
     }
 
-    private fun drawCard(): String {
-        // пока супер просто: "Q♦", "K♣" и т.п. (позже заменим на нормальную колоду)
+    private fun drawCards(n: Int): List<String> {
         val ranks = listOf("2","3","4","5","6","7","8","9","10","J","Q","K","A")
         val suits = listOf("♠","♥","♦","♣")
-        return ranks.random() + suits.random()
+        return List(n) { ranks.random() + suits.random() }
     }
 
     private fun rank(card: String): Int {
-        // rank для compare: достаём начало строки до масти
         val r = card.dropLast(1)
         return when (r) {
             "2" -> 2; "3" -> 3; "4" -> 4; "5" -> 5; "6" -> 6; "7" -> 7

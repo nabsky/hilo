@@ -52,11 +52,19 @@ sealed class Cmd {
 @Serializable
 enum class Side { HI, LO }
 
+@Serializable
+enum class Stage {
+    IDLE,
+    ARMED,
+    CHOOSING,
+    CONFIRMING,
+    REVEAL,
+    FINISH
+}
 
-/**
- * DTO (то, что гоняем по сети).
- * Держим простым: всё необходимое для рендера/анимации.
- */
+@Serializable
+enum class Camera { WIDE, COMPARE }
+
 @Serializable
 data class RoundStateDto(
     val roundId: String,
@@ -69,22 +77,16 @@ data class RoundStateDto(
     val bank: Int = 0,
     val stepIndex: Int = 0,
 
-    // для UI: текущая открытая карта, следующая (если уже вскрыта)
-    val currentCard: String? = null,
-    val revealedCard: String? = null,
+    // 5 карт раунда (строки пока)
+    val cards: List<String> = emptyList(),
 
+    // какая “камера” на биг-экране
+    val camera: Camera = Camera.WIDE,
+
+    // индекс пары (0..3): сравниваем cards[i] и cards[i+1]
+    val compareIndex: Int = 0,
+
+    // выбранная сторона и результат
     val choice: Side? = null,
     val resultText: String? = null
 )
-
-@Serializable
-enum class Stage {
-    IDLE,
-    ARMED,        // "player prepare"
-    BUY_IN,       // ввод суммы
-    DEAL,         // разложили 5 карт (пока можно без деталей)
-    CHOOSING,     // выбор Hi/Lo + коэффициенты (позже добавим в state)
-    CONFIRMING,   // zoom/подтверждение
-    REVEAL,       // вскрытие и результат
-    FINISH        // конец раунда
-}

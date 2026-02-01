@@ -31,7 +31,11 @@ fun GameScreen(
     LaunchedEffect(model.tableState) {
         model.tableState?.collectLatest { st ->
             line = st?.let {
-                "${it.stage} bank=${it.bank} card=${it.currentCard} next=${it.revealedCard} choice=${it.choice} result=${it.resultText}"
+                val i = it.compareIndex.coerceIn(0, 3)
+                val cur = it.cards.getOrNull(i)
+                val next = it.cards.getOrNull(i + 1)
+
+                "${it.stage} bank=${it.bank} i=$i cur=$cur next=$next choice=${it.choice} result=${it.resultText}"
             } ?: "NO STATE"
         }
     }
