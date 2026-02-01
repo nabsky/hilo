@@ -173,12 +173,21 @@ private fun CardsRowScene(s: RoundStateDto) {
         modifier = Modifier
             .fillMaxSize()
     ) {
+        val centerX = DESIGN_W / 2f
+        val centerY = DESIGN_H / 2f
+
+        val dx = centerX - (pairCenterX * animScale)
+        val dy = centerY - (pairCenterY * animScale)
+
         Box(
-            modifier = Modifier.graphicsLayer {
-                transformOrigin = TransformOrigin(pivotX, pivotY)
-                scaleX = animScale
-                scaleY = animScale
-            }
+            modifier = Modifier
+                // сначала смещаем (в dp через px())
+                .offset(x = px(dx), y = px(dy))
+                // потом масштабируем от (0,0)
+                .graphicsLayer {
+                    scaleX = animScale
+                    scaleY = animScale
+                }
         ) {
             // рисуем 5 карт
             for (idx in 0 until 5) {
@@ -292,7 +301,7 @@ private fun CompareOverlay(
 
 @Composable
 private fun ChoiceHints(choice: Side?) {
-    val y = 820f
+    val y = 900f
     HintBox(x = 420f, y = y, text = "HI  x 6.06", filled = choice == Side.HI)
     HintBox(x = 1120f, y = y, text = "LO  x 1.22", filled = choice == Side.LO)
 }
