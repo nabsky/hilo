@@ -63,6 +63,8 @@ dependencies {
     implementation(libs.ktor.client.websockets)
     implementation(libs.ktor.client.content.negotiation)
 
+    implementation(libs.coil.compose)
+    implementation(libs.coil.svg)
 
     debugImplementation(libs.ui.tooling)
 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -18,9 +19,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zorindisplays.display.net.protocol.*
+import com.zorindisplays.display.ui.components.CardSvg
 import com.zorindisplays.display.ui.theme.DefaultBackground
 import com.zorindisplays.display.ui.theme.DefaultTextStyle
 import com.zorindisplays.display.ui.theme.PrimaryTextColor
+import com.zorindisplays.display.util.CardAssetMapper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -218,17 +221,15 @@ private fun CardsRowScene(s: RoundStateDto) {
                 val isNext = idx == i + 1
                 val revealNext = (s.stage == Stage.REVEAL || s.stage == Stage.FINISH) && isNext
 
+                val isFaceUp = (idx <= s.compareIndex) || (s.stage == Stage.FINISH)
                 CardView(
                     x = x,
                     y = rowY,
                     w = cardW,
                     h = cardH,
-                    text = when {
-                        idx == i + 1 && !revealNext -> "🂠" // закрытая
-                        faceUp || revealNext -> cards[idx]
-                        else -> "🂠"
-                    },
-                    dim = idx > i + 1
+                    cardText = s.cards.getOrNull(idx),
+                    faceUp = isFaceUp,
+                    dim = false
                 )
             }
         }
@@ -263,25 +264,26 @@ private fun CardView(
     y: Float,
     w: Float,
     h: Float,
-    text: String,
+    cardText: String?,
+    faceUp: Boolean,
     dim: Boolean
 ) {
-    Box(
+    val file = if (faceUp && !cardText.isNullOrBlank()) {
+        CardAssetMapper.faceFile(cardText)
+    } else {
+        CardAssetMapper.backFile()
+    }
+
+    // если dim — можно просто чуть приглушить альфой
+    val alpha = if (dim) 0.35f else 1f
+
+    CardSvg(
+        assetFileName = file,
         modifier = Modifier
             .offset(x = px(x), y = px(y))
             .size(px(w), px(h))
-            .border(4.dp, PrimaryTextColor.copy(alpha = if (dim) 0.25f else 0.9f))
-            .background(DefaultBackground)
-            .padding(16.dp)
-    ) {
-        BasicText(
-            text = text,
-            style = DefaultTextStyle.copy(
-                fontSize = 56.sp,
-                color = PrimaryTextColor.copy(alpha = if (dim) 0.25f else 1f)
-            )
-        )
-    }
+            .alpha(alpha)
+    )
 }
 
 @Composable
