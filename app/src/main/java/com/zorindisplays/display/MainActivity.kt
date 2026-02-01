@@ -13,6 +13,8 @@ import androidx.core.view.WindowCompat
 class MainActivity : ComponentActivity() {
 
 /*
+adb forward tcp:18080 tcp:8080
+
 alias hilo='curl -s "http://localhost:18080/status" | head -c 200; echo'
 alias arm='curl -s "http://localhost:18080/cmd/arm?table=2&box=3" >/dev/null'
 alias buy='curl -s "http://localhost:18080/cmd/buyin?amount=100" >/dev/null'
