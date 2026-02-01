@@ -9,7 +9,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -52,16 +54,20 @@ fun BigScreen(port: Int) {
             .fillMaxSize()
             .background(DefaultBackground)
     ) {
-        val scale = minOf(maxWidth.value / DESIGN_W, maxHeight.value / DESIGN_H)
-        val offsetX = (maxWidth.value - DESIGN_W * scale) / 2f
-        val offsetY = (maxHeight.value - DESIGN_H * scale) / 2f
+        val density = LocalDensity.current
 
-        // “виртуальный холст 1920×1080”
+        val scale = minOf(maxWidth.value / DESIGN_W, maxHeight.value / DESIGN_H)
+        val offsetXDp = (maxWidth.value - DESIGN_W * scale) / 2f
+        val offsetYDp = (maxHeight.value - DESIGN_H * scale) / 2f
+
+        val offsetXPx = with(density) { offsetXDp.dp.toPx() }
+        val offsetYPx = with(density) { offsetYDp.dp.toPx() }
+
         Box(
             modifier = Modifier
                 .graphicsLayer {
-                    translationX = offsetX
-                    translationY = offsetY
+                    translationX = offsetXPx
+                    translationY = offsetYPx
                     scaleX = scale
                     scaleY = scale
                 }
@@ -140,15 +146,15 @@ private fun CardsRowScene(s: RoundStateDto) {
 
     // layout под 1920x1080:
     // ряд карт по центру, 5 штук
-    val rowY = 360.dp
-    val cardW = 230.dp
-    val cardH = 340.dp
-    val gap = 26.dp
+    val rowY = 360f
+    val cardW = 230f
+    val cardH = 340f
+    val gap = 26f
 
-    val rowWidth = cardW * 5 + gap * 4
-    val startX = (DESIGN_W.dp - rowWidth) / 2
+    val rowWidth = cardW * 5f + gap * 4f
+    val startX = (DESIGN_W - rowWidth) / 2f
 
-    // compare
+     // compare
     val i = s.compareIndex.coerceIn(0, 3)
     val leftX = startX + (cardW + gap) * i
     val rightX = startX + (cardW + gap) * (i + 1)
@@ -157,24 +163,22 @@ private fun CardsRowScene(s: RoundStateDto) {
     val animScale by animateFloatAsState(targetScale, label = "camScale")
 
     // “камера”: просто масштабируем всю сцену карт из центра пары
-    val pairCenterX = (leftX + rightX + cardW) / 2
-    val pairCenterY = rowY + cardH / 2
+    val pairCenterX = (leftX + rightX + cardW) / 2f
+    val pairCenterY = rowY + cardH / 2f
+
+    val pivotX = pairCenterX / DESIGN_W
+    val pivotY = pairCenterY / DESIGN_H
 
     Box(
         modifier = Modifier
             .fillMaxSize()
     ) {
         Box(
-            modifier = Modifier
-                .graphicsLayer {
-                    val cx = pairCenterX.toPx()
-                    val cy = pairCenterY.toPx()
-                    // scale around pair center
-                    translationX = cx - cx * animScale
-                    translationY = cy - cy * animScale
-                    scaleX = animScale
-                    scaleY = animScale
-                }
+            modifier = Modifier.graphicsLayer {
+                transformOrigin = TransformOrigin(pivotX, pivotY)
+                scaleX = animScale
+                scaleY = animScale
+            }
         ) {
             // рисуем 5 карт
             for (idx in 0 until 5) {
@@ -234,17 +238,17 @@ private fun CardsRowScene(s: RoundStateDto) {
 
 @Composable
 private fun CardView(
-    x: Dp,
-    y: Dp,
-    w: Dp,
-    h: Dp,
+    x: Float,
+    y: Float,
+    w: Float,
+    h: Float,
     text: String,
     dim: Boolean
 ) {
     Box(
         modifier = Modifier
-            .offset(x = x, y = y)
-            .size(w, h)
+            .offset(x = px(x), y = px(y))
+            .size(px(w), px(h))
             .border(4.dp, PrimaryTextColor.copy(alpha = if (dim) 0.25f else 0.9f))
             .background(DefaultBackground)
             .padding(16.dp)
@@ -261,70 +265,49 @@ private fun CardView(
 
 @Composable
 private fun CompareOverlay(
-    leftX: Dp,
-    rightX: Dp,
-    rowY: Dp,
-    cardW: Dp,
-    cardH: Dp,
+    leftX: Float,
+    rightX: Float,
+    rowY: Float,
+    cardW: Float,
+    cardH: Float,
     stage: Stage,
     resultText: String?
 ) {
-    val centerX = (leftX + rightX + cardW) / 2
+    val centerX = (leftX + rightX + cardW) / 2f
     val symbol = when {
         stage != Stage.REVEAL -> "?"
         resultText == "TIE" -> "="
-        resultText == "YOU WON!" -> "<"  // next higher if HI chosen; пока условно
+        resultText == "YOU WON!" -> "<"
         else -> ">"
     }
 
     BasicText(
         text = symbol,
         modifier = Modifier
-            .offset(
-                x = centerX - 16.dp,
-                y = rowY + cardH / 2 - 60.dp
-            ),
+            .offset(x = px(centerX - 16f), y = px(rowY + cardH / 2f - 60f)),
         style = DefaultTextStyle.copy(fontSize = 120.sp)
     )
 }
 
+
 @Composable
 private fun ChoiceHints(choice: Side?) {
-    val y = 820.dp
-
-    val hiSelected = choice == Side.HI
-    val loSelected = choice == Side.LO
-
-    // слева
-    HintBox(
-        x = 420.dp,
-        y = y,
-        text = "HI  x 6.06",
-        filled = hiSelected
-    )
-    // справа
-    HintBox(
-        x = 1120.dp,
-        y = y,
-        text = "LO  x 1.22",
-        filled = loSelected
-    )
+    val y = 820f
+    HintBox(x = 420f, y = y, text = "HI  x 6.06", filled = choice == Side.HI)
+    HintBox(x = 1120f, y = y, text = "LO  x 1.22", filled = choice == Side.LO)
 }
 
 @Composable
-private fun HintBox(x: Dp, y: Dp, text: String, filled: Boolean) {
+private fun HintBox(x: Float, y: Float, text: String, filled: Boolean) {
     Box(
         modifier = Modifier
-            .offset(x = x, y = y)
-            .size(380.dp, 92.dp)
+            .offset(x = px(x), y = px(y))
+            .size(px(380f), px(92f))
             .border(3.dp, PrimaryTextColor.copy(alpha = 0.9f))
             .background(if (filled) PrimaryTextColor.copy(alpha = 0.12f) else DefaultBackground),
         contentAlignment = Alignment.Center
     ) {
-        BasicText(
-            text = text,
-            style = DefaultTextStyle.copy(fontSize = 40.sp)
-        )
+        BasicText(text, style = DefaultTextStyle.copy(fontSize = 40.sp))
     }
 }
 
@@ -336,3 +319,6 @@ private fun httpGet(url: String): String {
     }
     c.inputStream.bufferedReader().use { return it.readText() }
 }
+
+@Composable
+private fun px(v: Float) = with(androidx.compose.ui.platform.LocalDensity.current) { v.toDp() }
