@@ -319,7 +319,6 @@ private fun ChoiceHints(choice: Side?, hiX: Double, loX: Double, tieX: Double) {
         selected = loSelected
     )
 
-    // символ между ними по центру
     val symbol = when (choice) {
         null -> "?"
         Side.HI -> "<"
@@ -332,6 +331,22 @@ private fun ChoiceHints(choice: Side?, hiX: Double, loX: Double, tieX: Double) {
         modifier = Modifier
             .offset(x = px(DESIGN_W / 2f - 18f), y = px(y + 120f)),
         style = DefaultTextStyle.copy(fontSize = 120.sp, textAlign = TextAlign.Center)
+    )
+
+    val hint = when (choice) {
+        null      -> "MAKE YOUR CHOICE"
+        Side.HI  -> "IF THE NEXT CARD IS HIGHER, BANK x ${"%.2f".format(hiX)} — OTHERWISE BANK IS LOST"
+        Side.LO  -> "IF THE NEXT CARD IS LOWER, BANK x ${"%.2f".format(loX)} — OTHERWISE BANK IS LOST"
+        Side.TIE -> "IF THE NEXT CARD IS THE SAME, BANK x ${"%.2f".format(tieX)} — OTHERWISE BANK IS HALVED"
+    }
+
+
+    BasicText(
+        text = hint,
+        modifier = Modifier
+            .fillMaxWidth()
+            .offset(x = px(0f), y = px(y - 120f)),
+        style = DefaultTextStyle.copy(fontSize = 36.sp, textAlign = TextAlign.Center)
     )
 }
 
